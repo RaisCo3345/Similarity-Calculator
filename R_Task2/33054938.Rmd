@@ -1,0 +1,307 @@
+---
+title: "Exploratory Data Analysis On Music Dataset"
+author: "Aliyu Abdullahi"
+date: "`r format(Sys.Date())`"
+output:
+  pdf_document: 
+    toc: true
+  word_document:
+    toc: true
+---
+
+# INTRODUCTION
+
+The paper describes an Exploratory Data Analysis (EDA) performed on a dataset of music. The database includes a diverse collection of songs by various artists, with all of them being characterized by features of different artists and eras. It is to know the structure of the datasets, clean and pre process the data, investigate relationships between features and visualise the key trends.
+
+The analytical starts with the data preparation uploading the needed libraries and describes their primary functions. Load the dataset data.csv, which indicates the first four lines of the dataset, dimension of the structure of the dataset, and missing values. I then compute the statistical summaries to have a feeling of the distribution of each feature. And next with visualizations, with distributions plots, including histogram Compare distributions using Boxplot, relationships between continuous variables using Scatter plots, and investigate features using Bar chart.
+
+Lastly, explore a correlation among the features to measure the intensity and orientation of such relations with the use of heatmaps. The most important conclusions of this research will be the most significant audio characteristics that relate to popularity, how the musical characteristics are spread throughout the data set, and reveal the common trends in the music industry over a period.
+
+
+# SHU AI Transparency Scale (AITS)
+- **AITS**: 1 
+- **Descriptor**: No AI
+- **Transparency Statement**: Artificial Intelligence (AI) has not been used for any part of the activity.
+- **AI Contributions**: AI is not used for any part of the activity.
+- **Human Contribution**: All aspects of the activity are human generated, created, edited, and developed.
+
+
+# Data Import and Setup
+## Required Libraries
+
+```{r}
+# Load libraries
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(ggcorrplot)
+  library(psych)
+})
+```
+
+### **Libraries and their functionalies:**
+
+-   **tidyverse** : is a collection of R packages that help users perform useful tasks such as creating graphics, reading data, manipulating data, using functions to sort and organize data, and more. Some of these packages include: **ggplot2**, **dplyr**, **tidyr**, **readr**, and **tibble**.
+-   **ggcorrplot** : Creates correlation heatmaps to visualize relationships between numerical features.
+-   **psych** : Provides descriptive statistics functions for comprehensive data summaries.
+
+## Load Data File
+### Sample Of four Rows
+
+```{r}
+d <- read.csv("data.csv")
+head(d, n=4)
+```
+
+## Dataset Dimensions and Structure
+
+```{r}
+dim(d)
+str(d)
+```
+
+# Data Cleaning and Preparation
+## Feature Selection
+
+```{r}
+# Create a new dataFrame with the required features
+df <- data.frame(d$artists, d$name, d$acousticness, d$valence, d$danceability, d$id, d$energy, d$liveness, d$loudness, d$popularity, d$speechiness, d$tempo)
+
+# Rename the columns for easy access
+df <- rename(df, Artist_name = d.artists, Track_name = d.name, Acousticness = d.acousticness, Valence = d.valence, Danceability = d.danceability, Id = d.id, Energy = d.energy, Liveness = d.liveness, Loudness = d.loudness, Popularity = d.popularity, Speechiness = d.speechiness, Tempo = d.tempo)
+
+head(df, n=5)
+str(df)
+```
+
+## Missing Values
+
+```{r}
+# Check for missing values and sum them
+missing_value <- any(is.na(df))
+sum(missing_value)
+
+# TO handle missing values, impute with mean for numeric, Unknown for characters
+df <- df %>%
+  mutate(across(where(is.numeric), ~ifelse(is.na(.), mean(., na.rm = TRUE), .))) %>%
+  mutate(across(where(is.character), ~ifelse(is.na(.), "Unknown", .)))
+```
+
+## Remove Duplicates
+
+```{r}
+# Check for duplicate rows and sum them
+duplicate_rows = any(duplicated(df))
+sum(duplicate_rows)
+
+# To remove a duplicate if any?
+remove_duplicate = df %>% distinct()
+```
+
+## Data Type Conversion
+
+```{r}
+# Convert numeric columns
+col_numerics <- c("Valence", "Acousticness", "Danceability", "Energy", "Liveness", 
+                 "Loudness", "Popularity", "Speechiness", "Tempo")
+
+# popularity is imported as int is converted to num.
+df <- df %>% mutate(across(all_of(col_numerics), as.numeric))
+str(df)
+```
+
+# Descriptive Statistics
+## Numerical Features
+
+```{r}
+# summary of the numerical variables
+numeric_data <- df %>% select(where(is.numeric))
+summary(numeric_data)
+```
+
+## Categorical Features
+
+```{r}
+# summary of the categorical variables
+category_data <- df %>% select(where(~is.factor(.) || is.character(.)))
+summary(category_data)
+```
+
+# Data Visualisation
+## Distribution Plots
+### Acousticness Liveness
+
+```{r}
+ggplot(df, aes(x = Liveness)) + 
+  geom_histogram(fill = "hotpink") +
+  labs(title = "Liveness Distribution", x = "Liveness", y = "Count")
+```
+
+### Energy Distribution
+
+```{r}
+ggplot(df, aes(x = Energy)) +
+  geom_histogram(fill = "deepskyblue") +
+  labs(title = "Energy Distribution", x = "Energy", y = "Count")
+```
+
+### Danceability Distribution
+
+```{r}
+ggplot(df, aes(x = Danceability)) +
+  geom_histogram(fill = "slateblue") +
+  labs(title = "Danceability Distribution", x = "Danceability", y = "Count")
+```
+
+### Popularity Distribution
+
+```{r}
+ggplot(df, aes(x = Popularity)) +
+  geom_histogram(fill = "yellowgreen") +
+  labs(title = "Popularity Distribution", x = "Popularity", y = "Count")
+```
+
+## Boxplots
+### Popularity vs Energy
+
+```{r}
+df_energy <- df %>% mutate(energy_category = cut(Energy, breaks = quantile(Energy, 
+      probs = c(0, 0.33, 0.66, 1), na.rm = TRUE),
+            labels = c("Low", "Middle", "High"), include.lowest = TRUE))
+
+ggplot(df_energy, aes(x = as.factor(energy_category), y = Popularity)) +
+  geom_boxplot(alpha = 0.8, fill = "slateblue") + 
+  labs(title = "Popularity by Energy Level", 
+        x = "Energy Category", y = "Popularity") 
+```
+
+### Popularity vs Danceability
+
+```{r}
+df_dance <- df %>% mutate(dance_category = cut(Danceability, breaks = quantile(Danceability,        probs = c(0, 0.33, 0.66, 1), na.rm = TRUE),
+              labels = c("Low", "Middle", "High"), include.lowest = TRUE))
+
+ggplot(df_dance, aes(x = as.factor(dance_category), y = Popularity)) +
+  geom_boxplot(alpha = 0.8, fill = "slateblue") +
+  labs(title = "Popularity by Danceability Level", x = "Danceability Category", y = "Popularity")  
+```
+
+### Popularity vs Liveness
+
+```{r}
+df_liveness <- df %>% mutate(liveness_category = cut(Liveness, breaks = quantile(Liveness,  probs = c(0, 0.33, 0.66, 1), na.rm = TRUE),
+     labels = c("Low", "Middle", "High"),include.lowest = TRUE))
+
+ggplot(df_liveness, aes(x = as.factor(liveness_category), y = Popularity)) + 
+  geom_boxplot(alpha = 0.8, fill = "slateblue") +
+    labs(title = "Liveness by Energy Level", x = "Liveness Category", y = "Popularity") 
+```
+
+## Scatter Plots
+### Popularity vs Energy
+
+```{r}
+ggplot(df, aes(x = Energy, y = Popularity)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(title = "Popularity vs Energy", x = "Energy", y = "Popularity")
+```
+
+### Popularity vs Danceability
+
+```{r}
+ggplot(df, aes(x = Danceability, y = Popularity)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(title = "Popularity vs Danceability", x = "Danceability", y = "Popularity")
+```
+
+### Popularity vs Liveness
+
+```{r}
+ggplot(df, aes(x = Liveness, y = Popularity)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(title = "Popularity vs Danceability", x = "Danceability", y = "Popularity")
+```
+
+## Bar Charts
+### Top Artists
+
+```{r}
+count_artists <- df %>% count(Artist_name, sort = TRUE)
+top_10 <- head(count_artists, n = 10)
+
+ggplot(top_10, aes(x = reorder(Artist_name, n), y = n)) +
+  geom_bar(stat = "identity", fill = "hotpink") +
+  coord_flip() +
+  labs(title = "Top 10 Artists by Track Count", x = "Artist", y = "Number of Tracks")
+```
+
+# Relationship and Trend Analysis
+## Correlation Analysis
+
+```{r}
+
+# New datFrame for numerical features
+correlation_vars <- data.frame(df$Acousticness, df$Valence, df$Danceability, df$Energy, df$Liveness, df$Loudness, df$Popularity, df$Speechiness, df$Tempo)
+
+# Rename the columns for easy access
+correlation_vars <- rename(correlation_vars, Acousticness = df.Acousticness, Valence = df.Valence, Danceability = df.Danceability, Energy = df.Energy, Liveness = df.Liveness, Loudness = df.Loudness, Popularity = df.Popularity, Speechiness = df.Speechiness, Tempo = df.Tempo)
+
+# Create correlation heatmap
+corr <- round(cor(correlation_vars), 2)
+ggcorrplot(corr, hc.order = TRUE, type = "lower", lab = TRUE) +
+ggtitle("Correlogram of numerical freatures")
+
+```
+
+## Correlations with Popularity
+
+```{r}
+popularity_corr <- cor(correlation_vars$Popularity, correlation_vars, use = "complete.obs")
+popularity_corr_df <- data.frame(Feature = colnames(popularity_corr), Correlation = as.numeric(popularity_corr))
+
+# Remove the "Popularity" row
+popularity_corr_df <- popularity_corr_df[popularity_corr_df$Feature != "Popularity", ]
+
+# Sort by strongest correlation (positive or negative)
+popularity_corr_df <- popularity_corr_df[order(-abs(popularity_corr_df$Correlation)), ]
+print(popularity_corr_df)
+```
+
+
+# Implications and Interpretations.
+## Key Findings
+
+**Distribution Of Liveness**: This is a measure of the sound of live recording between 0 and 1. The distribution is some how bimodal, pasitive skewed with a long tail, most of the tracks are clumped at the end with few in them. the middle. Tracks of this music collection are created to sound flawlessly or vice versa with hardly any in between.
+
+**Distribution Of Energy**: The energy distribution chart indicates a distinct bell shape which is symmetrical. Most tracks are higher and lower, the tracks of this collection is in reality produced or chosen to be high. with not many middle performace pieces.
+
+**Distribution Of Danceability**: Distribution of danceability is symmetric bell like distribution is a measure that determines how. each song is good for dancing. The chart indicates a strong peak at the range 0.75-1.00, and majority of. songs under this album are very danceable,
+
+**Distribution Of Popularity**: According to the popularity distribution chart, the skewed distribution is positive, which is an indication that most of the time the distribution is positive. tracks have lower popularity scores and less highly popular tracks.
+
+**Popularity VS Danceability**: This combination means that there is a good relationship between danceability. and popularity. The Tracks are rated on the basis of danceability in four equal parts (quartiles). score, the means of popularity is always greater in the groups that include the most danceable music. This trend is a strong indication that people will be drawn to music that is danceable. mass culture in the present day mainstream and streaming-driven music industry.
+
+**Popularity VS Energy**: The statistics clarify that there is a direct connection to Tracks that have increased energy constantly. achieve greater popularity. Tracks that had higher potential and impetus have higher average popularity score. This high rate of correlation denotes that more powerful Tracks are more powerful to listeners, it is more. thrilling, memorable and versatile. One can enjoy such songs during parties, in the gym and as background music. listening, in keeping with the way people play musics on a regular basis.
+
+**Feature Relationships**: based on the correlation analysis, track features are based on the popularity of the track. More energetic and danceable songs are more popular This implied that
+auditors are attracted to clubbing musics with some insane energy, Even, loudly, it affects positively or relationship with popularity, which is in line with the modern production trend that favors greater volume. Infact, in this data popular Tracks have higher probability of being energetic, dancing, and louder. 
+
+## Interesting Patterns
+
+**Interactions between Features**: What is observed in this analysis is that the Tracks, which are high energy, are also more danceable, significant associations between musical properties and a positive relationship is evident between energy and energy is negatively correlated with danceability, acousticness. The more acoustic any Track becomes, its vitality usually diminishes.
+
+**Outliers**: The outliers assists in determining things that make a Track most popular or appealing to a smaller crowd. There are some Tracks that are of great popularity higher than others. The high scoring tracks are probably big hits, and even the very low scoring are experimental.
+
+## Implications
+
+**The Recommendation Systems**: as per the correlation analysis, it was found that energy and danceability are shown. the strong positive connections to follow popularity, but to forecast and recommend a Track that listeners can be. probably liked, recommendation algorithms ought to be favorable, and more marks awarded to these two features.The relevancy and attractiveness could be enhanced by tuning the system to high energy and highly danceable tracks. of custom made suggestions.
+
+**Music And Film Industry**: To artists and film makers, songs that have immense power and dancing qualities can. is easily able to gain more popularity. 
+
+**Marketing**: In case of Marketing campaigns, energy and danceability can be highly recommended since they are the following features. correlate with popularity. Will assist in marketing of product materials.
+
+## Conclusion
+
+This exploratory type of data analysis provides me with an important idea about the connections between musical features. and track popularity. Energy danceability and loudness seem to be the most promising criteria of popularity. and feature interactions more often being made by a great popular song. have good ideas as to how they can be recommended and Marketing camoaigns and Music and film industries.
